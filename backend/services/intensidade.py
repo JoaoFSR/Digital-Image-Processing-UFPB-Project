@@ -71,3 +71,59 @@ def fatiamento_intensidade(imagem, A: int, B: int, preservar_fundo: bool):
         resultado[mascara] = 255
         
     return resultado
+
+def adicionar_ruido_gaussiano(img, media=0, sigma=20):
+
+    ruido = np.random.normal(media, sigma, img.shape)
+
+    resultado = img.astype(np.float32) + ruido
+
+    resultado = np.clip(resultado,0,255)
+
+    return resultado.astype(np.uint8)
+
+def adicionar_ruido_sal(img, porcentagem=0.02):
+
+    resultado = img.copy()
+
+    quantidade = int(porcentagem * img.size)
+
+    x = np.random.randint(0,img.shape[0],quantidade)
+    y = np.random.randint(0,img.shape[1],quantidade)
+
+    resultado[x,y] = 255
+
+    return resultado
+
+def adicionar_ruido_pimenta(img, porcentagem=0.02):
+
+    resultado = img.copy()
+
+    quantidade = int(porcentagem * img.size)
+
+    x = np.random.randint(0,img.shape[0],quantidade)
+    y = np.random.randint(0,img.shape[1],quantidade)
+
+    resultado[x,y] = 0
+
+    return resultado
+
+def adicionar_ruido_sal_pimenta(img, porcentagem=0.02):
+
+    resultado = img.copy()
+
+    quantidade = int(porcentagem * img.size)
+
+    metade = quantidade // 2
+
+    x = np.random.randint(0,img.shape[0],metade)
+    y = np.random.randint(0,img.shape[1],metade)
+
+    resultado[x,y] = 255
+
+    x = np.random.randint(0,img.shape[0],quantidade-metade)
+    y = np.random.randint(0,img.shape[1],quantidade-metade)
+
+    resultado[x,y] = 0
+
+    return resultado
