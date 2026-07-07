@@ -1,0 +1,12 @@
+# Ambientes virtuais
+venv/
+env/
+.env
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Imagens e arquivos temporários
+*.png
+*.jpg
