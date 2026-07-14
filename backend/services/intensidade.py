@@ -44,7 +44,7 @@ def transformacao_potencia(imagem, c: float, gamma: float):
 
 def equalizacao_histograma(imagem):
     """Redistribui as intensidades dos pixels para melhorar o contraste geral"""
-    #essa operação só é habilitada para imagens em escala de cinza
+    # essa operação só é habilitada para imagens em escala de cinza
     if not verificar_escala_cinza(imagem):
         raise ValueError("Equalização de histograma só está habilitada para imagens em escala de cinza")
     
@@ -73,57 +73,39 @@ def fatiamento_intensidade(imagem, A: int, B: int, preservar_fundo: bool):
     return resultado
 
 def adicionar_ruido_gaussiano(img, media=0, sigma=20):
-
+    # Gera ruído com base numa distribuição normal (gaussiana)
     ruido = np.random.normal(media, sigma, img.shape)
-
-    resultado = img.astype(np.float32) + ruido
-
-    resultado = np.clip(resultado,0,255)
-
+    
+    # Soma o ruído e usa clip para garantir que não passe de 255 ou fique abaixo de 0
+    resultado = np.clip(img.astype(np.float32) + ruido, 0, 255)
+    
     return resultado.astype(np.uint8)
 
-def adicionar_ruido_sal(img, porcentagem=0.02):
-
+def aplicar_ruido_aleatorio(img, porcentagem, valor):
+    """Função auxiliar para aplicar ruídos impulsivos (sal ou pimenta)."""
     resultado = img.copy()
-
+    
+    # Calcula a quantidade total de pixels que vão ser afetados pela porcentagem
     quantidade = int(porcentagem * img.size)
-
-    x = np.random.randint(0,img.shape[0],quantidade)
-    y = np.random.randint(0,img.shape[1],quantidade)
-
-    resultado[x,y] = 255
-
+    
+    # Escolhe posições aleatórias x e y na matriz
+    x = np.random.randint(0, img.shape[0], quantidade)
+    y = np.random.randint(0, img.shape[1], quantidade)
+    
+    # Aplica o valor (0 para pimenta, 255 para sal) nas coordenadas escolhidas
+    resultado[x, y] = valor
+    
     return resultado
+
+def adicionar_ruido_sal(img, porcentagem=0.02):
+    # Ruído sal aplica pixels brancos (255)
+    return aplicar_ruido_aleatorio(img, porcentagem, 255)
 
 def adicionar_ruido_pimenta(img, porcentagem=0.02):
-
-    resultado = img.copy()
-
-    quantidade = int(porcentagem * img.size)
-
-    x = np.random.randint(0,img.shape[0],quantidade)
-    y = np.random.randint(0,img.shape[1],quantidade)
-
-    resultado[x,y] = 0
-
-    return resultado
+    # Ruído pimenta aplica pixels pretos (0)
+    return aplicar_ruido_aleatorio(img, porcentagem, 0)
 
 def adicionar_ruido_sal_pimenta(img, porcentagem=0.02):
-
-    resultado = img.copy()
-
-    quantidade = int(porcentagem * img.size)
-
-    metade = quantidade // 2
-
-    x = np.random.randint(0,img.shape[0],metade)
-    y = np.random.randint(0,img.shape[1],metade)
-
-    resultado[x,y] = 255
-
-    x = np.random.randint(0,img.shape[0],quantidade-metade)
-    y = np.random.randint(0,img.shape[1],quantidade-metade)
-
-    resultado[x,y] = 0
-
-    return resultado
+    # Metade da porcentagem vai para sal (branco), e a outra metade para pimenta (preto)
+    resultado = adicionar_ruido_sal(img, porcentagem / 2)
+    return adicionar_ruido_pimenta(resultado, porcentagem / 2)
