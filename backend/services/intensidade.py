@@ -28,20 +28,24 @@ def transformacao_logaritmica(imagem, c: float):
     # converte de volta para inteiros de 8 bits sem sinal 
     return np.uint8(img_log)
 
-def transformacao_potencia(imagem, c: float, gamma: float):
-    """Aplica a fórmula s = c * (r ^ gamma)"""
-    # normalizamos a imagem original dividindo por 255.0 para deixar tudo entre 0 e 1
-    # isso evita números gigantescos na hora da exponenciação
-    img_float = np.float32(imagem) / 255.0
+def transformacao_logaritmica(imagem, c: float):
+    """Aplica a fórmula s = c * log(1 + r), expande tons escuros e comprime tons claros"""
+    # precisamos converter a imagem para float32. Se fizermos logaritmo em inteiros de 8 bits (0-255) perderemos as casas decimais e o cálculo ficará totalmente impreciso
+    img_float = np.float32(imagem)
     
-    # eleva a matriz inteira à potência gama e multiplica pela constante c
-    img_pow = c * np.power(img_float, gamma)
+    # np.log1p calcula log(1 + x) de forma segura, evitando erro caso algum pixel seja 0
+    img_log = c * (np.log1p(img_float))
     
-    # multiplica por 255 para voltar à escala original
-    # np.clip garante que nenhum pixel passe de 255 ou fique menor que 0 
-    img_pow = np.clip(img_pow * 255.0, 0, 255)
-    return np.uint8(img_pow)
-
+    # ATENÇÃO: antes usávamos cv2.normalize(..., NORM_MINMAX) aqui, mas isso sempre
+    # "esticava" o resultado para ocupar 0-255 por completo, o que anulava totalmente
+    # o efeito do parâmetro 'c' (mudar c não alterava a imagem final).
+    # Agora usamos np.clip para respeitar de fato o valor calculado por 's = c * log(1+r)',
+    # apenas cortando o que ultrapassar os limites válidos da imagem (0 a 255).
+    img_log = np.clip(img_log, 0, 255)
+    
+    # converte de volta para inteiros de 8 bits sem sinal 
+    return np.uint8(img_log)
+ 
 def equalizacao_histograma(imagem):
     """Redistribui as intensidades dos pixels para melhorar o contraste geral"""
     # essa operação só é habilitada para imagens em escala de cinza
