@@ -12,21 +12,21 @@ def limiarizacao(imagem, k: int):
     # Se o pixel for maior que k, ele vira 255. Se for menor, vira 0
     _, img_limiarizada = cv2.threshold(imagem, k, 255, cv2.THRESH_BINARY)
     return img_limiarizada
-
-def transformacao_logaritmica(imagem, c: float):
-    """Aplica a fórmula s = c * log(1 + r), expande tons escuros e comprime tons claros"""
-    # precisamos converter a imagem para float32. Se fizermos logaritmo em inteiros de 8 bits (0-255) perderemos as casas decimais e o cálculo ficará totalmente impreciso
-    img_float = np.float32(imagem)
+ 
+def transformacao_potencia(imagem, c: float, gamma: float):
+    """Aplica a fórmula s = c * (r ^ gamma)"""
+    # normalizamos a imagem original dividindo por 255.0 para deixar tudo entre 0 e 1
+    # isso evita números gigantescos na hora da exponenciação
+    img_float = np.float32(imagem) / 255.0
     
-    # np.log1p calcula log(1 + x) de forma segura, evitando erro caso algum pixel seja 0
-    img_log = c * (np.log1p(img_float))
+    # eleva a matriz inteira à potência gama e multiplica pela constante c
+    img_pow = c * np.power(img_float, gamma)
     
-    # o resultado não estará mais na escala 0-255
-    # usamos cv2.normalize para "esticar" os valores resultantes de volta para o intervalo [0, 255]
-    img_log = cv2.normalize(img_log, None, 0, 255, cv2.NORM_MINMAX)
-    
-    # converte de volta para inteiros de 8 bits sem sinal 
-    return np.uint8(img_log)
+    # multiplica por 255 para voltar à escala original
+    # np.clip garante que nenhum pixel passe de 255 ou fique menor que 0 
+    img_pow = np.clip(img_pow * 255.0, 0, 255)
+    return np.uint8(img_pow)
+ 
 
 def transformacao_logaritmica(imagem, c: float):
     """Aplica a fórmula s = c * log(1 + r), expande tons escuros e comprime tons claros"""
