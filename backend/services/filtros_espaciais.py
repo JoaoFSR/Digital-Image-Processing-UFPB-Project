@@ -161,4 +161,3 @@ def filtro_mediana_adaptativo(img, tamanho_max=7):
  
     return resultado
 
-    return resultado
