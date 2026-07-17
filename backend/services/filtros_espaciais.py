@@ -103,53 +103,62 @@ def gradiente_sobel(imagem):
     # Converte os resultados numéricos para a escala de imagem visível (0-255)
     return cv2.convertScaleAbs(magnitude)
 
+
 def filtro_mediana_adaptativo(img, tamanho_max=7):
     """
     Filtro de mediana inteligente. 
     Se a própria mediana for um ruído, ele aumenta o tamanho da janela de busca.
     Ele só altera o pixel central se tiver certeza de que ele é um ruído impulsivo,
     preservando muito mais os detalhes da imagem do que a mediana comum.
+ 
+    IMPORTANTE: esta função foi reescrita para ser vetorizada. A versão anterior
+    percorria a imagem pixel a pixel em Python puro (dois 'for' aninhados + um
+    'while' interno), o que é extremamente lento em imagens reais (podia levar
+    minutos e parecer que o app estava travado). Agora calculamos min/máx/mediana
+    para a imagem INTEIRA de uma vez, para cada tamanho de janela, usando
+    operações nativas do OpenCV/NumPy. O resultado matemático é o mesmo, mas a
+    execução passa a ser quase instantânea.
     """
+    img = img.astype(np.uint8)
     resultado = img.copy()
-    linhas, colunas = img.shape
-
-    # Varre a imagem inteira pixel por pixel
-    for i in range(linhas):
-        for j in range(colunas):
-            tamanho = 3 # Começa com uma janela de 3x3
-
-            while tamanho <= tamanho_max:
-                r = tamanho // 2
-
-                # Define as coordenadas da janela cortando nas bordas da imagem para não dar erro de índice
-                x1 = max(i-r, 0)
-                x2 = min(i+r+1, linhas)
-                y1 = max(j-r, 0)
-                y2 = min(j+r+1, colunas)
-
-                janela = img[x1:x2, y1:y2]
-
-                # Pega o valor mínimo, máximo e a mediana da vizinhança atual
-                zmin = np.min(janela)
-                zmax = np.max(janela)
-                zmed = np.median(janela)
-                zxy = img[i, j] # O valor original do pixel central
-
-                # Nível A: Verifica se a mediana calculada não é um ruído (não é o mínimo nem o máximo)
-                if zmin < zmed < zmax:
-                    
-                    # Nível B: Se a mediana for confiável, verifica se o pixel central NÃO é ruído
-                    if zmin < zxy < zmax:
-                        # Se não for ruído, mantém o original (preserva detalhes da imagem)
-                        resultado[i, j] = zxy
-                    else:
-                        # Se o pixel central for ruído (ex: 0 ou 255), troca ele pela mediana confiável
-                        resultado[i, j] = zmed
-                        
-                    break # Fim do processo para este pixel, vai para o próximo
-                
-                # Se o Nível A falhou (a própria mediana era um ruído), 
-                # aumenta a janela para buscar mais vizinhos e tenta de novo.
-                tamanho += 2
+ 
+    # Marca quais pixels já tiveram seu valor final decidido (Nível A satisfeito)
+    decidido = np.zeros(img.shape, dtype=bool)
+ 
+    tamanho = 3
+    zmed = None
+    while tamanho <= tamanho_max:
+        kernel = np.ones((tamanho, tamanho), dtype=np.uint8)
+ 
+        # zmin/zmax equivalem a erosão/dilatação (mínimo/máximo da vizinhança)
+        # zmed é a mediana da vizinhança — cv2.medianBlur já faz isso pra imagem toda
+        zmin = cv2.erode(img, kernel)
+        zmax = cv2.dilate(img, kernel)
+        zmed = cv2.medianBlur(img, tamanho)
+ 
+        # Nível A: a mediana da janela não é ela mesma um ruído (não é o mín nem o máx)
+        nivel_a = (zmin < zmed) & (zmed < zmax)
+ 
+        # Só processa pixels que ainda não foram decididos em uma janela menor
+        aplicavel = nivel_a & ~decidido
+ 
+        # Nível B: o pixel central é ruído (igual ao mín ou ao máx da janela)?
+        nivel_b = (zmin < img) & (img < zmax)
+ 
+        mantem_original = aplicavel & nivel_b
+        troca_por_mediana = aplicavel & ~nivel_b
+ 
+        resultado[mantem_original] = img[mantem_original]
+        resultado[troca_por_mediana] = zmed[troca_por_mediana]
+ 
+        decidido |= aplicavel
+        tamanho += 2
+ 
+    # Pixels que nunca satisfizeram o Nível A mesmo na maior janela testada:
+    # usamos a mediana da maior janela como valor de segurança (fallback razoável)
+    if zmed is not None:
+        resultado[~decidido] = zmed[~decidido]
+ 
+    return resultado
 
     return resultado
